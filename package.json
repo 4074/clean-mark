@@ -1,0 +1,31 @@
+{
+  "name": "image-transformer",
+  "productName": "CleanMark",
+  "version": "1.0.0",
+  "description": "基于 Electron 的图片左上角红色水印批量去除工具",
+  "main": "src/main.js",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node scripts/launch.js",
+    "start:dev": "node scripts/launch.js --dev",
+    "start:direct": "electron .",
+    "package": "node scripts/package.js",
+    "test:algorithm": "node scripts/test-algorithm.js",
+    "package:win": "node scripts/package-win.js",
+    "package:all": "node scripts/package.js && node scripts/package-win.js"
+  },
+  "dependencies": {
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^45.4.1",
+    "png-to-ico": "^3.0.2"
+  },
+  "optionalDependencies": {
+    "@img/sharp-win32-x64": "0.35.5"
+  }
+}

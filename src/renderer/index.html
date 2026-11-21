@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data: cleanimg:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' cleanimg:; font-src 'self';"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>净印 · 图片去水印</title>
+    <script src="./theme.js"></script>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="titlebar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path
+                d="M8 10.25h16a2.25 2.25 0 0 1 2.25 2.25v7A2.25 2.25 0 0 1 24 21.75H8a2.25 2.25 0 0 1-2.25-2.25v-7A2.25 2.25 0 0 1 8 10.25Z"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <path d="M10.5 16h7.25" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+              <path d="m23.4 20.9 4.1-4.1" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+              <circle cx="13.3" cy="13.4" r="1.2" fill="currentColor" />
+              <circle cx="19.4" cy="13.4" r="1.2" fill="currentColor" />
+            </svg>
+          </div>
+          <div class="brand-copy">
+            <span class="brand-name">净印</span>
+            <span class="brand-sub">WATERMARK CLEANER</span>
+          </div>
+        </div>
+
+        <div class="titlebar-side">
+          <span class="local-chip"><span class="local-dot"></span>本地处理 · 图片不上传</span>
+          <div class="theme-switch" role="group" aria-label="界面主题">
+            <span class="theme-indicator" aria-hidden="true"></span>
+            <button id="themeLight" class="theme-option" type="button" title="浅色主题" aria-label="浅色主题" aria-pressed="false">
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <circle cx="10" cy="10" r="3.25" stroke="currentColor" stroke-width="1.5" />
+                <path d="M10 2.2v1.55M10 16.25v1.55M2.2 10h1.55M16.25 10h1.55M4.48 4.48l1.1 1.1M14.42 14.42l1.1 1.1M15.52 4.48l-1.1 1.1M5.58 14.42l-1.1 1.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+              </svg>
+            </button>
+            <button id="themeDark" class="theme-option" type="button" title="深色主题" aria-label="深色主题" aria-pressed="true">
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M16.35 12.35A6.55 6.55 0 0 1 7.65 3.65a6.55 6.55 0 1 0 8.7 8.7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <button id="chooseFolderTop" class="icon-button" type="button" title="选择文件夹" aria-label="选择文件夹">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M3.75 7.75A2.5 2.5 0 0 1 6.25 5.25h3.1c.52 0 1.01.2 1.38.56l1.15 1.1c.37.36.86.56 1.38.56h4.49a2.5 2.5 0 0 1 2.5 2.5v6.28a2.5 2.5 0 0 1-2.5 2.5H6.25a2.5 2.5 0 0 1-2.5-2.5V7.75Z"
+                stroke="currentColor"
+                stroke-width="1.7"
+              />
+              <path d="M8 12.5h8M12 8.5v8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="main-area">
+        <section id="emptyView" class="empty-view">
+          <div class="empty-copy">
+            <div class="eyebrow"><span class="eyebrow-line"></span>LOCAL BATCH CLEANER</div>
+            <h1>擦掉红色标签，<br /><span>只留下商品本身。</span></h1>
+            <p class="hero-desc">
+              自动识别图片左上角一枚或两枚「红底白字」水印，用周围真实的黑色背景完成修补。
+              批量处理，不压缩画质，也不会上传任何图片。
+            </p>
+
+            <button id="dropzone" class="dropzone" type="button">
+              <span class="dropzone-art" aria-hidden="true">
+                <svg viewBox="0 0 42 42" fill="none">
+                  <rect x="5" y="8" width="32" height="26" rx="4" stroke="currentColor" stroke-width="1.5" />
+                  <path d="M5 16h32" stroke="currentColor" stroke-width="1.5" />
+                  <path d="m14 27 4.6-4.8 3.2 3.1 3.4-4.1L31 27" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle cx="28" cy="12" r="1.5" fill="currentColor" />
+                </svg>
+              </span>
+              <span class="dropzone-copy">
+                <strong>把一个文件夹拖到这里</strong>
+                <span>或者 <u>选择文件夹</u></span>
+              </span>
+              <span class="dropzone-arrow" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M5 12h13m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+            </button>
+
+            <div class="format-line">
+              <span>JPG</span><span>PNG</span><span>WEBP</span><span>TIFF</span>
+              <i></i>
+              <span>自动创建 <b>xxx-transformed</b> 文件夹</span>
+            </div>
+
+            <div class="steps">
+              <div class="step">
+                <span class="step-no">01</span>
+                <strong>选择文件夹</strong>
+                <p>读取其中所有图片，包含子文件夹。</p>
+              </div>
+              <div class="step">
+                <span class="step-no">02</span>
+                <strong>自动识别</strong>
+                <p>查找左上角红底白字标签，最多支持多个。</p>
+              </div>
+              <div class="step">
+                <span class="step-no">03</span>
+                <strong>背景修补</strong>
+                <p>取水印四周的黑色背景做自然填充。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="empty-visual" aria-hidden="true">
+            <div class="visual-orbit orbit-a"></div>
+            <div class="visual-orbit orbit-b"></div>
+            <div class="demo-window">
+              <div class="demo-topbar">
+                <span class="window-dots"><i></i><i></i><i></i></span>
+                <span class="demo-filename">ABC01A.png</span>
+                <span class="demo-filetag">已净化</span>
+              </div>
+              <div class="demo-canvas">
+                <div class="demo-noise"></div>
+                <div class="demo-product">
+                  <span class="demo-layer layer-a"></span>
+                  <span class="demo-layer layer-b"></span>
+                  <span class="demo-layer layer-c"></span>
+                </div>
+                <div class="demo-watermarks">
+                  <span class="demo-watermark">ABC01A</span>
+                  <span class="demo-watermark">ABC01B</span>
+                </div>
+                <div class="demo-after-fill"></div>
+                <div class="demo-sweep"></div>
+                <div class="demo-divider"><span></span></div>
+                <span class="demo-tag before">原图</span>
+                <span class="demo-tag after">已洗净</span>
+              </div>
+              <div class="demo-bottombar">
+                <span><i class="status-dot"></i>检测到 2 处水印</span>
+                <span class="demo-time">0.18s / 张</span>
+              </div>
+            </div>
+
+            <div class="float-chip chip-top">
+              <span class="chip-icon">
+                <svg viewBox="0 0 20 20" fill="none">
+                  <path d="m4 10.4 3.3 3.3L16 5.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+              红底白字识别
+            </div>
+            <div class="float-chip chip-bottom">
+              <span class="chip-icon">
+                <svg viewBox="0 0 20 20" fill="none">
+                  <path d="M10 3.2v13.6M3.2 10h13.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <circle cx="10" cy="10" r="6.9" stroke="currentColor" stroke-width="1.3" />
+                </svg>
+              </span>
+              黑色背景自然修补
+            </div>
+            <span class="visual-caption">BEFORE / AFTER</span>
+          </div>
+        </section>
+
+        <section id="workspace" class="workspace" hidden>
+          <aside class="sidebar">
+            <div class="side-scroll">
+              <div class="side-section">
+                <div class="side-label">当前文件夹</div>
+                <div class="folder-card">
+                  <span class="folder-glyph">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M3.5 7.5A2.25 2.25 0 0 1 5.75 5.25h3.4c.47 0 .92.18 1.25.5l1.2 1.15c.33.32.78.5 1.25.5h4.9a2.25 2.25 0 0 1 2.25 2.25v6.6a2.25 2.25 0 0 1-2.25 2.25H5.75a2.25 2.25 0 0 1-2.25-2.25v-8.5Z"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                      />
+                    </svg>
+                  </span>
+                  <span class="folder-text">
+                    <strong id="folderName">—</strong>
+                    <span id="folderPath" title="">—</span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="side-stats">
+                <div class="stat">
+                  <span id="statCount">0</span>
+                  <small>张图片</small>
+                </div>
+                <div class="stat">
+                  <span id="statDone">0</span>
+                  <small>已完成</small>
+                </div>
+                <div class="stat">
+                  <span id="statWatermarks">0</span>
+                  <small>处水印</small>
+                </div>
+              </div>
+
+              <div class="side-section">
+                <div class="side-label-row">
+                  <div class="side-label">输出文件夹</div>
+                  <span class="mini-tag">自动创建</span>
+                </div>
+                <button id="outputCard" class="output-card" type="button" disabled>
+                  <span class="output-icon">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M7 4.75h7.1L19 9.65v9.6A2.25 2.25 0 0 1 16.75 21.5h-9.5A2.25 2.25 0 0 1 5 19.25V7A2.25 2.25 0 0 1 7.25 4.75Z" stroke="currentColor" stroke-width="1.55" />
+                      <path d="M14 4.9v5.1h5.05M8.5 13h7M8.5 16h4.2" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" />
+                    </svg>
+                  </span>
+                  <span class="output-text">
+                    <strong id="outputName">—</strong>
+                    <span id="outputPath" title="">开始处理后创建</span>
+                  </span>
+                  <svg class="output-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M6 14 14 6M8 6h6v6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+              </div>
+
+              <div class="side-tip">
+                <span class="tip-spark">✦</span>
+                <p>水印需要位于图片左上角，且四周为黑色背景。每张图最多识别 4 个标签。</p>
+              </div>
+            </div>
+
+            <div class="side-bottom">
+              <div id="progressBox" class="progress-box" hidden>
+                <div class="progress-line">
+                  <span id="progressLabel">准备中…</span>
+                  <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress-track"><span id="progressFill"></span></div>
+              </div>
+              <button id="processBtn" class="primary-button" type="button">
+                <span class="button-icon">
+                  <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                    <path d="M11 3.2v2.2M11 16.6v2.2M3.2 11h2.2M16.6 11h2.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                    <path d="m6.3 6.3 1.5 1.5m6.4 6.4 1.5 1.5m0-9.4-1.5 1.5m-6.4 6.4-1.5 1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                    <circle cx="11" cy="11" r="3.1" stroke="currentColor" stroke-width="1.7" />
+                  </svg>
+                </span>
+                <span id="processBtnText">开始去除水印</span>
+              </button>
+              <button id="cancelBtn" class="cancel-button" type="button" hidden>取消处理</button>
+            </div>
+          </aside>
+
+          <section class="content">
+            <header class="content-head">
+              <div class="content-heading">
+                <div class="eyebrow"><span class="eyebrow-line"></span>WORKSPACE</div>
+                <div class="content-title-row">
+                  <h2>图片预览与结果</h2>
+                  <span id="runState" class="run-state">等待处理</span>
+                </div>
+              </div>
+              <div class="content-actions">
+                <span class="count-chip"><b id="countChip">0</b> 张图片</span>
+                <button id="reselectBtn" class="ghost-button" type="button">
+                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M3.5 6.5A2 2 0 0 1 5.5 4.5h2.7c.4 0 .78.16 1.06.44l.9.88c.28.28.66.44 1.06.44h3.28a2 2 0 0 1 2 2v5.24a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2V6.5Z" stroke="currentColor" stroke-width="1.45" />
+                  </svg>
+                  更换文件夹
+                </button>
+              </div>
+            </header>
+
+            <div class="content-grid">
+              <section class="list-panel">
+                <div class="list-head">
+                  <span>文件列表</span>
+                  <span id="listSummary">0 个文件</span>
+                </div>
+                <div id="fileList" class="file-list" role="list"></div>
+                <div id="listEmpty" class="list-empty" hidden>
+                  <span class="list-empty-icon">∅</span>
+                  <strong>这里还没有可处理的图片</strong>
+                  <p>支持 JPG、PNG、WEBP、TIFF 和 AVIF。</p>
+                </div>
+              </section>
+
+              <section class="inspector">
+                <div id="inspectorEmpty" class="inspector-empty">
+                  <span class="inspector-empty-mark">◌</span>
+                  <strong>选择一张图片查看预览</strong>
+                </div>
+                <div id="inspectorContent" class="inspector-content">
+                  <div class="inspector-head">
+                    <div class="inspector-title">
+                      <span class="side-label">PREVIEW</span>
+                      <h3 id="inspectName">—</h3>
+                    </div>
+                    <span id="inspectStatus" class="status-pill pending">待处理</span>
+                  </div>
+
+                  <div id="compareShell" class="compare-shell">
+                    <div id="compareFrame" class="compare-frame">
+                      <img id="afterImg" class="compare-img" alt="处理后的图片" draggable="false" />
+                      <img id="beforeImg" class="compare-img before-img" alt="原始图片" draggable="false" />
+                      <div id="compareDivider" class="compare-divider" hidden><span></span></div>
+                      <span id="tagBefore" class="compare-tag tag-before" hidden>原图</span>
+                      <span id="tagAfter" class="compare-tag tag-after" hidden>已净化</span>
+                      <div id="previewLoading" class="preview-loading" hidden><span></span>加载预览…</div>
+                    </div>
+                    <div id="compareControls" class="compare-controls" hidden>
+                      <span>原图</span>
+                      <input id="compareRange" type="range" min="0" max="100" value="50" step="1" aria-label="原图与结果对比" />
+                      <span>已净化</span>
+                    </div>
+                  </div>
+
+                  <div class="inspect-meta">
+                    <div class="meta-cell">
+                      <span>文件大小</span>
+                      <strong id="metaSize">—</strong>
+                    </div>
+                    <div class="meta-cell">
+                      <span>图片尺寸</span>
+                      <strong id="metaDimensions">—</strong>
+                    </div>
+                    <div class="meta-cell">
+                      <span>检测结果</span>
+                      <strong id="metaDetected">—</strong>
+                    </div>
+                    <div class="meta-cell">
+                      <span>处理耗时</span>
+                      <strong id="metaDuration">—</strong>
+                    </div>
+                  </div>
+
+                  <div id="inspectError" class="inspect-error" hidden>
+                    <strong>处理失败</strong>
+                    <span id="inspectErrorText"></span>
+                  </div>
+
+                  <div id="inspectOutput" class="inspect-output" hidden>
+                    <div class="output-head">
+                      <span>已保存到</span>
+                      <button id="revealOutput" type="button">在访达中显示</button>
+                    </div>
+                    <code id="inspectOutputPath">—</code>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div id="dragOverlay" class="drag-overlay" hidden>
+      <div class="drag-overlay-inner">
+        <span class="drag-icon">
+          <svg viewBox="0 0 48 48" fill="none">
+            <path d="M8 15a4 4 0 0 1 4-4h7.3l3 3H36a4 4 0 0 1 4 4v17a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4V15Z" stroke="currentColor" stroke-width="2" />
+            <path d="M24 22v11m-4.5-4.5L24 33l4.5-4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </span>
+        <strong>松手即可读取文件夹</strong>
+        <span>图片不会被上传，全部在本机处理</span>
+      </div>
+    </div>
+
+    <div id="toastStack" class="toast-stack" aria-live="polite"></div>
+    <div id="scanOverlay" class="scan-overlay" hidden>
+      <span class="scan-spinner"></span>
+      <span>正在读取文件夹…</span>
+    </div>
+
+    <script src="./renderer.js" defer></script>
+  </body>
+</html>

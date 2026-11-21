@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+exec "$ROOT/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" "$ROOT" "$@"
