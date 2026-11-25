@@ -1,4 +1,4 @@
-'use strict';
+import type { DetectionOptions, RemovalOptions, WatermarkBox } from './types';
 
 /**
  * 左上角红色标签水印的识别与背景修复。
@@ -7,7 +7,7 @@
  * 这样算法可以单独用 node 脚本测试，也方便后续换成 worker_threads。
  */
 
-const DEFAULTS = {
+const DEFAULTS: Required<DetectionOptions> = {
   // 水印只会出现在左上角，收窄搜索区域可以减少误判。
   searchWidthRatio: 0.52,
   searchHeightRatio: 0.34,
@@ -25,7 +25,7 @@ const DEFAULTS = {
   maxCount: 4,
 };
 
-function isRedWatermarkPixel(r, g, b) {
+export function isRedWatermarkPixel(r: number, g: number, b: number): boolean {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   if (max < 78) return false;
@@ -41,15 +41,15 @@ function isRedWatermarkPixel(r, g, b) {
   );
 }
 
-function isNearWhite(r, g, b) {
+export function isNearWhite(r: number, g: number, b: number): boolean {
   return r > 172 && g > 172 && b > 172 && Math.max(r, g, b) - Math.min(r, g, b) < 46;
 }
 
-function luma(r, g, b) {
+function luma(r: number, g: number, b: number): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-function dilateBinary(mask, width, height, radius) {
+function dilateBinary(mask: Uint8Array, width: number, height: number, radius: number): Uint8Array {
   if (radius <= 0) return mask;
   const out = new Uint8Array(mask.length);
   for (let y = 0; y < height; y++) {
@@ -68,13 +68,23 @@ function dilateBinary(mask, width, height, radius) {
   return out;
 }
 
+interface Component {
+  area: number;
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  centerX: number;
+  centerY: number;
+}
+
 /**
  * 8 邻域连通域。返回每个域的面积与包围盒。
  */
-function connectedComponents(mask, width, height) {
+function connectedComponents(mask: Uint8Array, width: number, height: number): Component[] {
   const visited = new Uint8Array(mask.length);
   const queue = new Int32Array(mask.length);
-  const components = [];
+  const components: Component[] = [];
   const neighbors = [-1, 1, -width, width, -width - 1, -width + 1, width - 1, width + 1];
 
   for (let start = 0; start < mask.length; start++) {
@@ -129,7 +139,7 @@ function connectedComponents(mask, width, height) {
   return components;
 }
 
-function clamp(value, min, max) {
+function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
@@ -137,7 +147,27 @@ function clamp(value, min, max) {
  * 在候选框外围取一圈像素，判断是否是黑色背景。
  * 只统计接近中性色的暗像素，避免把标签的红色边缘算进来。
  */
-function ringDarkness(data, width, height, channels, box, padding) {
+interface Box {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+interface RingStats {
+  ratio: number;
+  mean: number;
+  count: number;
+}
+
+function ringDarkness(
+  data: Uint8Array,
+  width: number,
+  height: number,
+  channels: number,
+  box: Box,
+  padding: number
+): RingStats {
   const x0 = Math.max(0, box.x0 - padding);
   const y0 = Math.max(0, box.y0 - padding);
   const x1 = Math.min(width - 1, box.x1 + padding);
@@ -174,7 +204,13 @@ function ringDarkness(data, width, height, channels, box, padding) {
   return { ratio: dark / count, mean: sum / count, count };
 }
 
-function bboxStats(data, width, height, channels, box) {
+function bboxStats(
+  data: Uint8Array,
+  width: number,
+  height: number,
+  channels: number,
+  box: Box
+): { total: number; red: number; white: number; redDensity: number; whiteRatio: number } {
   let red = 0;
   let white = 0;
   let total = 0;
@@ -200,10 +236,14 @@ function bboxStats(data, width, height, channels, box) {
 
 /**
  * 检测左上角的“红底白字”标签。
- * @param {Buffer|Uint8Array} data RGB 或 RGBA 像素
- * @returns {Array<{x0:number,y0:number,x1:number,y1:number,score:number}>}
  */
-function detectWatermarks(data, width, height, channels, options = {}) {
+export function detectWatermarks(
+  data: Uint8Array,
+  width: number,
+  height: number,
+  channels: number,
+  options: DetectionOptions = {}
+): WatermarkBox[] {
   if (!width || !height || !data) return [];
   const cfg = { ...DEFAULTS, ...options };
 
@@ -224,7 +264,7 @@ function detectWatermarks(data, width, height, channels, options = {}) {
   const workMask = dilateBinary(redMask, width, height, 1);
   const components = connectedComponents(workMask, width, height);
 
-  const candidates = [];
+  const candidates: WatermarkBox[] = [];
   for (const comp of components) {
     const bw = comp.maxX - comp.minX + 1;
     const bh = comp.maxY - comp.minY + 1;
@@ -285,7 +325,7 @@ function detectWatermarks(data, width, height, channels, options = {}) {
 
   // 同一标签可能因为抗锯齿/文字而被拆成几个候选框，合并重叠框。
   candidates.sort((a, b) => b.score - a.score || a.y0 - b.y0);
-  const merged = [];
+  const merged: WatermarkBox[] = [];
   for (const candidate of candidates) {
     const duplicate = merged.some((other) => {
       const ix = Math.max(0, Math.min(candidate.x1, other.x1) - Math.max(candidate.x0, other.x0));
@@ -303,7 +343,7 @@ function detectWatermarks(data, width, height, channels, options = {}) {
   return merged
     .sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0)
     .slice(0, cfg.maxCount)
-    .map(({ score, whiteRatio, redDensity, ringDarkRatio, ...box }) => ({
+    .map(({ score, whiteRatio, redDensity, ringDarkRatio, ...box }: WatermarkBox) => ({
       ...box,
       score,
       whiteRatio,
@@ -312,7 +352,7 @@ function detectWatermarks(data, width, height, channels, options = {}) {
     }));
 }
 
-function mulberry32(seed) {
+function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return function random() {
     a |= 0;
@@ -323,7 +363,7 @@ function mulberry32(seed) {
   };
 }
 
-function gaussianNoise(random) {
+function gaussianNoise(random: () => number): number {
   let u = 0;
   let v = 0;
   while (u === 0) u = random();
@@ -334,7 +374,14 @@ function gaussianNoise(random) {
 /**
  * 估算黑色背景的高频噪声强度，让修复区域不会看起来像一块“磨皮”过的塑料。
  */
-function estimateNoiseSigma(data, width, height, channels, mask, boxes) {
+function estimateNoiseSigma(
+  data: Uint8Array,
+  width: number,
+  height: number,
+  channels: number,
+  mask: Uint8Array,
+  boxes: WatermarkBox[]
+): number {
   let minX = width;
   let minY = height;
   let maxX = -1;
@@ -385,7 +432,20 @@ function estimateNoiseSigma(data, width, height, channels, mask, boxes) {
  * 调和插值（Laplace inpaint），最后叠加从背景环带采样的细颗粒噪声。
  * 由于水印周围是纯黑背景，这种方式比模糊或直接涂黑更自然。
  */
-function removeWatermarks(data, width, height, channels, watermarks, options = {}) {
+export interface RemovalResult {
+  removedPixels: number;
+  mask: Uint8Array | null;
+  boxes: WatermarkBox[];
+}
+
+export function removeWatermarks(
+  data: Uint8Array,
+  width: number,
+  height: number,
+  channels: number,
+  watermarks: WatermarkBox[],
+  options: RemovalOptions = {}
+): RemovalResult {
   if (!watermarks || watermarks.length === 0) {
     return { removedPixels: 0, mask: null, boxes: [] };
   }
@@ -417,7 +477,7 @@ function removeWatermarks(data, width, height, channels, watermarks, options = {
   );
 
   // 1. 取所有标签外围的暗色中性像素，估算背景基色。
-  const samples = [[], [], []];
+  const samples: number[][] = [[], [], []];
   let minX = width;
   let minY = height;
   let maxX = -1;
@@ -502,10 +562,3 @@ function removeWatermarks(data, width, height, channels, watermarks, options = {
   return { removedPixels: mask.reduce((sum, value) => sum + value, 0), mask, boxes };
 }
 
-module.exports = {
-  DEFAULTS,
-  detectWatermarks,
-  removeWatermarks,
-  isRedWatermarkPixel,
-  isNearWhite,
-};

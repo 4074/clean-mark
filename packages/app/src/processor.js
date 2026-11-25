@@ -3,8 +3,7 @@
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
-const sharp = require('sharp');
-const { detectWatermarks, removeWatermarks } = require('./watermark');
+const { clean } = require('@cleanmark/lib');
 
 const SUPPORTED_EXTENSIONS = new Set([
   '.jpg',
@@ -90,76 +89,39 @@ async function scanFolder(folderPath) {
   };
 }
 
-function formatForOutput(format, metadata) {
-  switch (format) {
-    case 'png':
-      return metadata.sharp.png({ compressionLevel: 9, adaptiveFiltering: true });
-    case 'webp':
-      return metadata.sharp.webp({ quality: 95, effort: 4 });
-    case 'tiff':
-      return metadata.sharp.tiff({ quality: 95, compression: 'lzw' });
-    case 'avif':
-      return metadata.sharp.avif({ quality: 68, effort: 4 });
-    case 'jpeg':
-    default: {
-      const pipeline = metadata.channels === 4 ? metadata.sharp.removeAlpha() : metadata.sharp;
-      return pipeline.jpeg({ quality: 94, mozjpeg: true, chromaSubsampling: '4:4:4' });
-    }
-  }
-}
-
 /**
- * 解码 -> 检测 -> 修补 -> 按原格式编码。
- * 没有检测到水印时返回 detected=false，由调用方决定原样复制。
+ * 读取图片 -> 交给 lib 检测并清除水印 -> 写入原格式结果。
+ * 没有检测到水印时由 lib 原样返回 Buffer，这里直接复制原文件。
  */
 async function transformImage(inputPath, outputPath, options = {}) {
   const startedAt = Date.now();
-  const sharpOptions = { failOn: 'none', animated: false };
+  const inputStat = await fsp.stat(inputPath);
+  const inputBuffer = await fsp.readFile(inputPath);
+  const format = options.format || FORMAT_BY_EXTENSION[path.extname(inputPath).toLowerCase()];
 
-  const image = sharp(inputPath, sharpOptions).rotate().toColorspace('srgb');
-  const originalMeta = await image.metadata();
-  const { data, info } = await image.raw({ depth: 'uchar' }).toBuffer({ resolveWithObject: true });
+  const result = await clean(inputBuffer, {
+    detection: options.detection,
+    removal: options.removal,
+    format,
+    quality: options.quality,
+  });
 
-  if (!info.width || !info.height || (info.channels !== 3 && info.channels !== 4)) {
-    throw new Error('不支持的图片像素格式。');
-  }
+  await fsp.mkdir(path.dirname(outputPath), { recursive: true });
 
-  const watermarks = detectWatermarks(data, info.width, info.height, info.channels, options.detection);
-  const detected = watermarks.length > 0;
-
-  if (detected) {
-    removeWatermarks(data, info.width, info.height, info.channels, watermarks, options.removal);
-  }
-
-  let outputBytes = null;
-  if (detected) {
-    const raw = {
-      width: info.width,
-      height: info.height,
-      channels: info.channels,
-    };
-    const pipeline = sharp(data, { raw }).toColorspace('srgb');
-    const output = formatForOutput(options.format || FORMAT_BY_EXTENSION[path.extname(inputPath).toLowerCase()] || 'jpeg', {
-      sharp: pipeline,
-      channels: info.channels,
-    });
-    outputBytes = await output.toBuffer();
-
-    await fsp.mkdir(path.dirname(outputPath), { recursive: true });
+  if (result.detected) {
     const tempPath = `${outputPath}.tmp-${process.pid}-${Date.now()}`;
     try {
-      await fsp.writeFile(tempPath, outputBytes);
+      await fsp.writeFile(tempPath, result.data);
       await fsp.rename(tempPath, outputPath);
     } catch (error) {
       await fsp.rm(tempPath, { force: true }).catch(() => {});
       throw error;
     }
   } else {
-    await fsp.mkdir(path.dirname(outputPath), { recursive: true });
+    // 没有水印时不重新编码，保留原始字节和元数据。
     await fsp.copyFile(inputPath, outputPath);
   }
 
-  const inputStat = await fsp.stat(inputPath);
   try {
     await fsp.utimes(outputPath, inputStat.atime, inputStat.mtime);
   } catch {
@@ -167,15 +129,15 @@ async function transformImage(inputPath, outputPath, options = {}) {
   }
 
   return {
-    detected,
-    watermarks,
+    detected: result.detected,
+    watermarks: result.watermarks,
     outputPath,
-    width: info.width,
-    height: info.height,
-    outputBytes: outputBytes ? outputBytes.length : inputStat.size,
+    width: result.width,
+    height: result.height,
+    outputBytes: result.detected ? result.data.length : inputStat.size,
     originalBytes: inputStat.size,
     durationMs: Date.now() - startedAt,
-    format: originalMeta.format,
+    format: result.format,
   };
 }
 

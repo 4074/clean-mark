@@ -9,10 +9,11 @@ const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const root = path.resolve(__dirname, '..');
+const appRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(appRoot, '..', '..');
 
 function findPackagedApp() {
-  const distDir = path.join(root, 'dist');
+  const distDir = path.join(repoRoot, 'dist');
   if (!fs.existsSync(distDir)) return null;
   for (const entry of fs.readdirSync(distDir)) {
     const candidate = path.join(distDir, entry, 'CleanMark.app');
@@ -39,7 +40,7 @@ if (process.platform === 'darwin') {
     console.log('未找到已打包应用，使用开发启动器。执行 npm run package 可生成 .app。');
   }
 
-  const launcher = path.join(root, 'scripts', 'DevLauncher.app');
+  const launcher = path.join(appRoot, 'scripts', 'DevLauncher.app');
   const result = spawnSync('open', ['-n', launcher], { stdio: 'inherit' });
   if (result.error) {
     console.error(result.error.message);
@@ -49,5 +50,5 @@ if (process.platform === 'darwin') {
 }
 
 const electron = require('electron');
-const child = spawn(electron, ['.'], { cwd: root, stdio: 'inherit' });
+const child = spawn(electron, ['.'], { cwd: appRoot, stdio: 'inherit' });
 child.on('close', (code) => process.exit(code == null ? 0 : code));

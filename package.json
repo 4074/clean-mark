@@ -1,31 +1,22 @@
 {
-  "name": "image-transformer",
-  "productName": "CleanMark",
+  "name": "cleanmark-monorepo",
   "version": "1.0.0",
-  "description": "基于 Electron 的图片左上角红色水印批量去除工具",
-  "main": "src/main.js",
   "private": true,
+  "description": "净印 monorepo：TypeScript 水印库 + Electron 桌面应用",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @cleanmark/lib",
+    "postinstall": "node scripts/link-workspace.js",
+    "test": "npm run test -w @cleanmark/lib && npm run test -w @cleanmark/app",
+    "start": "npm run build && npm run start -w @cleanmark/app",
+    "start:dev": "npm run build && npm run start:dev -w @cleanmark/app",
+    "package": "npm run build && npm run package -w @cleanmark/app",
+    "package:win": "npm run build && npm run package:win -w @cleanmark/app",
+    "package:all": "npm run build && npm run package -w @cleanmark/app && npm run package:win -w @cleanmark/app"
+  },
   "engines": {
     "node": ">=20"
-  },
-  "scripts": {
-    "start": "node scripts/launch.js",
-    "start:dev": "node scripts/launch.js --dev",
-    "start:direct": "electron .",
-    "package": "node scripts/package.js",
-    "test:algorithm": "node scripts/test-algorithm.js",
-    "package:win": "node scripts/package-win.js",
-    "package:all": "node scripts/package.js && node scripts/package-win.js"
-  },
-  "dependencies": {
-    "sharp": "^0.35.5"
-  },
-  "devDependencies": {
-    "@electron/packager": "^20.3.0",
-    "electron": "^45.4.1",
-    "png-to-ico": "^3.0.2"
-  },
-  "optionalDependencies": {
-    "@img/sharp-win32-x64": "0.35.5"
   }
 }

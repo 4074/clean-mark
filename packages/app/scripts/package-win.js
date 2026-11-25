@@ -7,13 +7,14 @@ const os = require('os');
 const { spawnSync } = require('child_process');
 const { packager } = require('@electron/packager');
 
-const ROOT = path.resolve(__dirname, '..');
-const ELECTRON_VERSION = '45.4.1';
+const APP_ROOT = path.resolve(__dirname, '..');
+const REPO_ROOT = path.resolve(APP_ROOT, '..', '..');
+const ELECTRON_VERSION = require(path.join(APP_ROOT, 'node_modules', 'electron', 'package.json')).version;
 const ARCH = 'x64';
 const ZIP_NAME = `electron-v${ELECTRON_VERSION}-win32-${ARCH}.zip`;
-const OUT_DIR = path.join(ROOT, 'dist');
-const ZIP_DIR = path.join(ROOT, '.electron-zips');
-const CACHE_DIR = path.join(ROOT, '.electron-cache');
+const OUT_DIR = path.join(REPO_ROOT, 'dist');
+const ZIP_DIR = path.join(REPO_ROOT, '.electron-zips');
+const CACHE_DIR = path.join(REPO_ROOT, '.electron-cache');
 const APP_NAME = 'CleanMark';
 
 function run(command, args, options = {}) {
@@ -50,19 +51,19 @@ async function ensureElectronZip() {
 }
 
 async function ensureWindowsSharp() {
-  const target = path.join(ROOT, 'node_modules', '@img', 'sharp-win32-x64');
+  const target = path.join(APP_ROOT, 'node_modules', 'sharp', 'node_modules', '@img', 'sharp-win32-x64');
   if (fs.existsSync(path.join(target, 'index.cjs'))) return target;
 
   console.log('准备 Windows 版 sharp 运行库…');
-  const packageJson = JSON.parse(await fsp.readFile(path.join(ROOT, 'package.json'), 'utf8'));
+  const packageJson = JSON.parse(await fsp.readFile(path.join(APP_ROOT, 'package.json'), 'utf8'));
   const version = (packageJson.optionalDependencies || {})['@img/sharp-win32-x64'];
   if (!version) throw new Error('package.json 缺少 @img/sharp-win32-x64 可选依赖。');
 
   const tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'cleanmark-sharp-win-'));
   try {
-    const cache = path.join(ROOT, '.npm-cache');
+    const cache = path.join(REPO_ROOT, '.npm-cache');
     run('npm', ['pack', `@img/sharp-win32-x64@${version}`, '--pack-destination', tempDir, '--silent'], {
-      cwd: ROOT,
+      cwd: APP_ROOT,
       env: { ...process.env, npm_config_cache: cache },
     });
     const tarball = (await fsp.readdir(tempDir)).find((name) => name.endsWith('.tgz'));
@@ -88,15 +89,25 @@ function createZip(folderName, zipPath) {
 }
 
 
-async function pruneSharpPlatforms({ buildPath, platform }) {
-  const imgDir = path.join(buildPath, 'node_modules', '@img');
-  if (!fs.existsSync(imgDir)) return;
+async function pruneStagedApp({ buildPath, platform }) {
+  const libDir = path.join(buildPath, 'node_modules', '@cleanmark', 'lib');
+  for (const junk of ['node_modules', 'src', 'test', 'tsconfig.json', 'package-lock.json']) {
+    await fsp.rm(path.join(libDir, junk), { recursive: true, force: true });
+  }
+
+  const imgDirs = [
+    path.join(buildPath, 'node_modules', '@img'),
+    path.join(buildPath, 'node_modules', 'sharp', 'node_modules', '@img'),
+  ];
   const keep = platform === 'win32'
     ? new Set(['sharp-win32-x64', 'colour'])
     : new Set(['sharp-darwin-x64', 'sharp-libvips-darwin-x64', 'colour']);
-  for (const entry of await fsp.readdir(imgDir)) {
-    if (!keep.has(entry)) {
-      await fsp.rm(path.join(imgDir, entry), { recursive: true, force: true });
+  for (const imgDir of imgDirs) {
+    if (!fs.existsSync(imgDir)) continue;
+    for (const entry of await fsp.readdir(imgDir)) {
+      if (!keep.has(entry)) {
+        await fsp.rm(path.join(imgDir, entry), { recursive: true, force: true });
+      }
     }
   }
 }
@@ -108,7 +119,7 @@ async function main() {
 
   console.log('开始打包 Windows x64 应用…');
   const appPaths = await packager({
-    dir: ROOT,
+    dir: APP_ROOT,
     name: APP_NAME,
     out: OUT_DIR,
     overwrite: true,
@@ -117,7 +128,7 @@ async function main() {
     arch: ARCH,
     appVersion: '1.0.0',
     appCopyright: 'Copyright © 2026',
-    icon: path.join(ROOT, 'assets', 'icon.ico'),
+    icon: path.join(APP_ROOT, 'assets', 'icon.ico'),
     win32metadata: {
       CompanyName: 'CleanMark',
       FileDescription: '净印 · 图片去水印',
@@ -126,21 +137,17 @@ async function main() {
       ProductName: '净印',
     },
     asar: {
-      unpackDir: 'node_modules/@img',
+      unpackDir: '**/@img/**',
     },
     ignore: [
-      /^\/test($|\/)/,
       /^\/dist($|\/)/,
+      /^\/test($|\/)/,
       /^\/\.tmp/,
-      /^\/\.npm-cache($|\/)/,
-      /^\/\.electron-cache($|\/)/,
-      /^\/\.electron-zips($|\/)/,
       /^\/scripts($|\/)/,
       /^\/README\.md$/,
-      /^\/docs($|\/)/,
     ],
     electronZipDir: ZIP_DIR,
-    afterPrune: [pruneSharpPlatforms],
+    afterPrune: [pruneStagedApp],
   });
 
   const appDir = appPaths[0];
